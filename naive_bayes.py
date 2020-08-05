@@ -101,9 +101,18 @@ class NaiveBayesGaussian:
         # arrays, pandas dataframes/series) into numpy arrays to standardize the input types:
         X_features = np.array(X_features)
         y_target = np.array(y_target)
+        # Handle case where y_target is a Pandas dataframe with only 1 column:
+        if y_target.ndim == 2:
+            y_target = y_target.reshape((len(y_target),))
+        # Make sure y_target is 1-dimensional array:
+        try:
+            assert y_target.ndim == 1
+        except AssertionError as error:
+            sys.exit("Error: Please provide a y_target with 1 dimension.")
 
         # Calculate and save class priors (the standalone marginal probability of each class):
         self.get_class_priors(y_target)
+
         # Calculate the summary statistics (mean, sample variance) for the class-conditional probability 
         # (feature_i | class_i) distributions of each feature, from the training data provided:
         self.get_ccps_likelihoods(X_features, y_target)
@@ -141,20 +150,26 @@ class NaiveBayesGaussian:
         # Return the predictions array:
         return predictions
 
-    def score(self, X_features, y_target):        
-        # Convert provided y_target vector (this can be a list, numpy array, pandas 
-        # dataframes/series) into a list to standardize the types:
-        actual = list(y_target)
-        predictions = self.predict(X_features=X_features)
+    def score(self, X_features, y_true):        
+        # Convert provided y_true (this can be a list, numpy array, pandas dataframes/series) 
+        # into a numpy array to standardize the types:
+        y_true = np.array(y_true)
+        # Handle case where y_target is a Pandas dataframe with only 1 column:
+        if y_true.ndim == 2:
+            y_true = y_true.reshape((len(y_true),))
 
-        # Make sure provided y_target is the right length:
+        # Get predictions for input data (X_features a.k.a. X_test):
+        predictions = self.predict(X_features=X_features)
+        
+        # Make sure y_target is a 1-dimensional array with the right length:
         try:
-            assert len(predictions) == len(actual)
-        except AssertionError:
-            print("""Error: Please make sure the provided y_target is the same length as 
-            the y_target used to train the model with the fit() method.""")
+            assert y_true.ndim == 1
+            assert len(predictions) == len(y_true)
+        except AssertionError as error:
+            sys.exit("""Error: Please make sure the provided y_true has 1 dimension, and has the 
+            same length (number of observations or rows) as X_features.""")
         
         # Get accuracy score:
-        accuracy_score = sum([predictions[item_num] == actual[item_num] for item_num in range(len(predictions))]) / len(predictions)
+        accuracy_score = sum([predictions[item_num] == y_true[item_num] for item_num in range(len(predictions))]) / len(predictions)
 
         return accuracy_score
